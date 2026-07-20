@@ -61,3 +61,5 @@ python gnm_skull_to_face.py --input markeri_gnm.csv --output reconstructie.obj
 ### This tool is a personal project intended for anthropological research and 3D modeling purposes. Reconstruction accuracy is strictly dependent on the precise placement of anatomical markers and the biological quality of the input skull scan.
 
 ### Developed for digital anthropology and advanced craniofacial reconstruction workflows.
+
+**Developed with help from Claude and Gemini**
