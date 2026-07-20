@@ -14,8 +14,8 @@
 
 <table align="center">
 <tr>
-<td align="center" width="50%"><img src="assets/reconstruction_front.png" width="100%" alt="Reconstructed face — front view"><br><sub>Front view</sub></td>
-<td align="center" width="50%"><img src="assets/reconstruction_profile.png" width="100%" alt="Reconstructed face — profile view"><br><sub>Profile view</sub></td>
+<td align="center" width="50%"><img src="reconstruction_front.png" width="100%" alt="Reconstructed face — front view"><br><sub>Front view</sub></td>
+<td align="center" width="50%"><img src="reconstruction_profile.png" width="100%" alt="Reconstructed face — profile view"><br><sub>Profile view</sub></td>
 </tr>
 </table>
 
@@ -91,7 +91,7 @@ This table correlates the labels used in the Blender add-on interface with stand
 4. **Export** — generate the `.csv` file with **Export Final CSV**.
 
 <p align="center">
-  <img src="assets/blender_marker_placement.png" alt="Marker placement panel in the Blender add-on" width="85%">
+  <img src="blender_marker_placement.png" alt="Marker placement panel in the Blender add-on" width="85%">
   <br><sub>The GNM Markeri V11 panel — landmarks placed on the skull, with per-marker radius and stem thickness controls</sub>
 </p>
 
