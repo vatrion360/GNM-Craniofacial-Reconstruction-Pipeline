@@ -1,0 +1,213 @@
+{
+  "nasion": {
+    "vertex_index": 12319,
+    "position": [
+      4.006635572295636e-05,
+      0.3056374490261078,
+      0.12353469431400299
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 27,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "pronasale": {
+    "vertex_index": 12296,
+    "position": [
+      8.804180106380954e-05,
+      0.2683440148830414,
+      0.146500363945961
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 30,
+    "confidence": "medium-high",
+    "note": "varful nasului (cartilaj); NU este rhinion craniometric - vezi intrarea \"rhinion\""
+  },
+  "rhinion": {
+    "vertex_index": 12310,
+    "position": [
+      6.611895887157144e-05,
+      0.2805476378756789,
+      0.13900342726034842
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 29,
+    "confidence": "medium-high",
+    "note": "rhinion craniometric (mijlocul oaselor nazale, 25.1 mm sub Nasion); adaugat in V13.4 - inlocuieste folosirea eronata a vertexului 12296 (pronasale) pentru Rhinion"
+  },
+  "subnasale": {
+    "vertex_index": 12298,
+    "position": [
+      2.563581983849872e-05,
+      0.25386756658554077,
+      0.1323017179965973
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 33,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "alare_right": {
+    "vertex_index": 10105,
+    "position": [
+      -0.016788024455308914,
+      0.25514769554138184,
+      0.12332028895616531
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 31,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "alare_left": {
+    "vertex_index": 3977,
+    "position": [
+      0.016831181943416595,
+      0.2551653981208801,
+      0.12334726005792618
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 35,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "exocanthion_right": {
+    "vertex_index": 7426,
+    "position": [
+      -0.0438537672162056,
+      0.2999816834926605,
+      0.10577508062124252
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 36,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "endocanthion_right": {
+    "vertex_index": 11027,
+    "position": [
+      -0.018348077312111855,
+      0.29892829060554504,
+      0.11089832335710526
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 39,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "endocanthion_left": {
+    "vertex_index": 4899,
+    "position": [
+      0.01838548108935356,
+      0.298899382352829,
+      0.1109248474240303
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 42,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "exocanthion_left": {
+    "vertex_index": 1298,
+    "position": [
+      0.04382471367716789,
+      0.29992231726646423,
+      0.10570428520441055
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 45,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "cheilion_right": {
+    "vertex_index": 10653,
+    "position": [
+      -0.025241218507289886,
+      0.2306748777627945,
+      0.11920607835054398
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 48,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "cheilion_left": {
+    "vertex_index": 4525,
+    "position": [
+      0.025414153933525085,
+      0.2307223677635193,
+      0.11919334530830383
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 54,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "gnathion": {
+    "vertex_index": 12258,
+    "position": [
+      -0.0006755831418558955,
+      0.19122740626335144,
+      0.12369818240404129
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 8,
+    "confidence": "medium-high",
+    "note": ""
+  },
+  "gonion_right_approx": {
+    "vertex_index": 8737,
+    "position": [
+      -0.0646575465798378,
+      0.2281467318534851,
+      0.0522056519985199
+    ],
+    "source": "manual_verified_v12",
+    "confidence": "medium",
+    "note": "V13.4: inlocuit vertexul 11165 (iBUG 0, langa ureche - NU unghiul gonial) cu 8737 (verificat anatomic V12, bigonial 129.3 mm pe template)"
+  },
+  "gonion_left_approx": {
+    "vertex_index": 2609,
+    "position": [
+      0.0646744892001152,
+      0.22816473245620728,
+      0.05224975571036339
+    ],
+    "source": "manual_verified_v12",
+    "confidence": "medium",
+    "note": "V13.4: inlocuit vertexul 5037 (iBUG 16, langa ureche - NU unghiul gonial) cu 2609 (verificat anatomic V12, bigonial 129.3 mm pe template)"
+  },
+  "zygion_right": {
+    "vertex_index": 10002,
+    "position": [
+      -0.06771274656057358,
+      0.2791491746902466,
+      0.08314811438322067
+    ],
+    "source": "geometric_extremum[right_zygomatic_region, axis=0, min]",
+    "confidence": "medium-high",
+    "note": "V13.4: verificat anatomic (V12) - regiunea zigomatica, bizigomatic 135.4 mm pe template"
+  },
+  "zygion_left": {
+    "vertex_index": 3874,
+    "position": [
+      0.06769169121980667,
+      0.2792106866836548,
+      0.08331047743558884
+    ],
+    "source": "geometric_extremum[left_zygomatic_region, axis=0, max]",
+    "confidence": "medium-high",
+    "note": "V13.4: verificat anatomic (V12) - regiunea zigomatica, bizigomatic 135.4 mm pe template"
+  },
+  "glabella": {
+    "vertex_index": 12337,
+    "position": [
+      8.94933327799663e-06,
+      0.32134538888931274,
+      0.12507393956184387
+    ],
+    "source": "manual_verified_v12",
+    "confidence": "medium-high",
+    "note": "V13.4: inlocuit vertexul 12333 (extremum geometric, prea sus pe frunte, 27 mm peste Nasion) cu 12337 (verificat anatomic V12, 15.8 mm peste Nasion)"
+  }
+}
