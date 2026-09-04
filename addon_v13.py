@@ -152,6 +152,12 @@ LANDMARKS = [
     (3977,  "Alare_St", 4.5, 1, True), (7765, "Eurion_Dr", 5.0, -1, True),
     (1637,  "Eurion_St", 5.0, 1, True), (12398, "Vertex_VarfCap", 5.5, 0, True),
     (12298, "Nasospinale_BazaNas", 11.0, 0, True), (12276, "Prosthion_BuzaSup", 12.0, 0, True),
+    # V13.6: Acanthion + marginile inferioare ale aperturei piriforme, pentru
+    # diagnosticul de proiectie nazala (Gerasimov/Ullrich-Stephan) - vezi
+    # cranio.backend.gnm_backend. 12297 = imediat sub subnasale (proiectia
+    # spinei nazale); 10215/4087 = +-12.4 mm (proiectia marginii aperturei).
+    (12297, "Acanthion", 10.0, 0, True),
+    (10215, "Piriform_Dr", 6.5, -1, True), (4087, "Piriform_St", 6.5, 1, True),
 ]
 
 def _encode_index(v_id: int, is_exact: bool) -> int:
@@ -348,7 +354,7 @@ class GNMMarkerItem(PropertyGroup):
 # -----------------------------------------------------------------------
 class GNM_OT_import_setup(Operator):
     bl_idname = "gnm.import_setup"
-    bl_label = "1. Importa & Calibreaza Craniul (.stl/.obj)"
+    bl_label = "1. Import & Calibrate Skull (.stl/.obj)"
     bl_options = {"REGISTER", "UNDO"}
     filepath: StringProperty(subtype="FILE_PATH")
 
@@ -562,6 +568,10 @@ class GNM_OT_place_marker(Operator):
         peg.scale = (p_thick, p_thick, direction.length)
         context.collection.objects.link(peg)
         item.peg_object = peg
+
+        # V13.7: coloreaza os/piele/bat dupa schema ghost-urilor (verde/
+        # portocaliu/mov/rosu - vezi legenda din panou).
+        _refresh_marker_objects(scene)
 
         # V13: declansam un refit live (no-op daca modul live e oprit).
         _request_refit(scene)
@@ -1357,6 +1367,15 @@ GNM_LIVE_COLLECTION = "GNM_Live"
 GNM_MESH_NAME = "GNM_HEAD_LIVE"
 GNM_GHOST_PREFIX = "GNM_LM_"
 
+# V13.6: ghost separat (cyan) pentru pronasale estimat prin constructia
+# Gerasimov/Ullrich-Stephan - diagnostic informativ, calculat in worker din
+# pozitiile PE OS ale markerilor nazali, nu influenteaza fitul.
+GNM_GERASIMOV_NAME = "GNM_PRONASALE_GERASIMOV"
+GNM_GERASIMOV_COLOR = (0.2, 0.9, 0.95, 0.7)   # cyan
+_GERASIMOV_LABELS = ("Nasion", "Rhinion", "Acanthion",
+                     "Piriform_Dr", "Piriform_St")
+_PRONASALE_VID = 12296  # iBUG 30 = varful nasului (nu e in LABEL_TO_VERTEX)
+
 # Correspondenta eticheta-addon -> cheie din landmark_vertex_map.json.
 # Folosita DOAR pentru confidence/culori (vertexul vine din lantul de
 # precedenta de mai sus). Quirk-uri comentate inline.
@@ -1391,6 +1410,10 @@ ADDON_TO_JSON_KEY = {
     "Vertex_VarfCap": None,
     "Nasospinale_BazaNas": "subnasale",
     "Prosthion_BuzaSup": None,
+    # V13.6: intrari JSON proprii (manual_anatomical_v13.6, medium).
+    "Acanthion": "acanthion",
+    "Piriform_Dr": "piriform_right",
+    "Piriform_St": "piriform_left",
 }
 
 
@@ -1469,6 +1492,10 @@ def _ensure_cranio(npz_path):
             from cranio.optimize import fit_identity as _fi
             if "prior_mean" not in inspect.signature(_fi).parameters:
                 return False
+            # V13.6 fix: un cranio vechi poate avea prior_mean dar nu si
+            # gerasimov_pronasale; fara el diagnosticul Gerasimov nu apare
+            # live (importul lenes de mai jos era inghitit tacut).
+            from cranio.geometry import gerasimov_pronasale as _gp  # noqa: F401
             if root and os.path.isdir(os.path.join(root, "cranio")):
                 mod_root = os.path.dirname(os.path.dirname(
                     os.path.abspath(cranio.__file__)))
@@ -1488,13 +1515,13 @@ def _ensure_cranio(npz_path):
             import cranio  # noqa: F401
         except ImportError as exc:
             return False, (
-                f"Pachetul 'cranio' nu poate fi importat ({exc}). Setati "
-                f"calea catre gnm_head.npz din repo (contine si cranio/).")
+                f"The 'cranio' package cannot be imported ({exc}). Set the "
+                f"path to the repo's gnm_head.npz (it also contains cranio/).")
     from cranio.optimize import fit_identity, LossConfig
     if "prior_mean" not in inspect.signature(fit_identity).parameters:
         return False, (
-            "cranio.optimize.fit_identity nu suporta prior_mean - versiune "
-            "cranio prea veche; sincronizati repo-ul.")
+            "cranio.optimize.fit_identity does not support prior_mean - "
+            "cranio version too old; please sync the repo.")
     try:
         from cranio.landmarks import CONFIDENCE_WEIGHTS, DEFAULT_CONFIDENCE
     except ImportError:
@@ -1522,6 +1549,12 @@ def _ensure_cranio(npz_path):
         "compute_vertex_normals": compute_vertex_normals,
         "weighted_umeyama": weighted_umeyama,
     })
+    # V13.6: diagnosticul Gerasimov/Ullrich-Stephan (numpy pur, apt de worker).
+    try:
+        from cranio.geometry import gerasimov_pronasale
+        _CRANIO["gerasimov_pronasale"] = gerasimov_pronasale
+    except ImportError:
+        pass
     return True, ""
 
 
@@ -1646,6 +1679,12 @@ def _gnm_live_objects():
     for o in bpy.data.objects:
         if o.name.startswith(GNM_GHOST_PREFIX):
             objs.add(o)
+    # V13.6 fix: ghost-ul cyan Gerasimov nu are prefixul GNM_LM_ (nu e
+    # landmark de fit), dar apartine tot viewport-ului drept - altfel nu
+    # intra in local-view la setup/sync/overlay si parea "inexistent" live.
+    ger = bpy.data.objects.get(GNM_GERASIMOV_NAME)
+    if ger is not None:
+        objs.add(ger)
     return objs
 
 
@@ -1703,6 +1742,20 @@ def _ghost_color(item):
     return (0.25, 0.85, 0.35, 0.6)      # V12 / JSON medium-high: verde
 
 
+def _refresh_marker_objects(scene):
+    """Coloreaza obiectele markerilor plasati (os/piele/bat) cu aceeasi
+    schema de culori ca ghost-urile (vezi legenda din panou).
+
+    Spre deosebire de ghost-uri (care se ascund cand landmark-ul nu are
+    correspondenta GNM), batul ramane vizibil si in cazul rosu - el sta
+    pe craniu (viewport-ul stang), nu pe capul GNM."""
+    for item in scene.gnm_markers:
+        col = _ghost_color(item)
+        for obj in (item.bone_empty, item.target_empty, item.peg_object):
+            if obj is not None:
+                obj.color = col
+
+
 def _refresh_ghosts(scene):
     """Sincronizeaza culorile/vizibilitatea ghost-urilor cu starea curenta.
 
@@ -1720,6 +1773,9 @@ def _refresh_ghosts(scene):
         unmapped = (item is not None and _resolve_vertex(item) is None)
         obj.hide_set((not show) or unmapped)
         obj.empty_display_size = size
+    # Betele/empties-urile markerilor (viewport-ul stang) urmeaza aceeasi
+    # schema de culori.
+    _refresh_marker_objects(scene)
 
 
 def _ensure_ghosts(context):
@@ -1748,6 +1804,18 @@ def _ensure_ghosts(context):
             obj.location = m_world[:3, :3] @ p + m_world[:3, 3]
         elif mesh_obj is not None:
             obj.location = mesh_obj.matrix_world.translation
+    # V13.6: ghost-ul cyan Gerasimov - separat de prefixul GNM_LM_ (nu e
+    # landmark de fit), ascuns pana exista o estimare valida din worker.
+    obj = bpy.data.objects.get(GNM_GERASIMOV_NAME)
+    if obj is None:
+        obj = bpy.data.objects.new(GNM_GERASIMOV_NAME, None)
+        obj.empty_display_type = 'SPHERE'
+        obj.color = GNM_GERASIMOV_COLOR
+        coll.objects.link(obj)
+    obj.show_in_front = True
+    obj.hide_render = True
+    obj.empty_display_size = scene.gnm_settings.marker_size_mm * 1.6
+    obj.hide_set(True)
     _refresh_ghosts(scene)
 
 
@@ -1768,6 +1836,20 @@ def _update_ghosts_from_fit(scene, v_model, scale, rot, trans):
         obj = bpy.data.objects.get(GNM_GHOST_PREFIX + lbl)
         if obj is not None:
             obj.location = vw[k]
+
+
+def _update_gerasimov_ghost(scene, ger):
+    """Pozitioneaza/ascunde ghost-ul cyan Gerasimov (V13.6). MAIN thread.
+
+    ger = res["gerasimov"] din worker (None = nicio informatie -> ascuns).
+    Respecta toggle-ul global show_ghosts."""
+    obj = bpy.data.objects.get(GNM_GERASIMOV_NAME)
+    if obj is None:
+        return
+    ok = bool(ger) and ger.get("ok") and ger.get("xyz") is not None
+    if ok:
+        obj.location = ger["xyz"]
+    obj.hide_set((not scene.gnm_live.show_ghosts) or not ok)
 
 
 # -----------------------------------------------------------------------
@@ -2355,6 +2437,14 @@ def _build_snapshot(scene):
     # V13.2: modul dense continuu + poza curenta a obiectului GNM (necesara
     # pentru calculul corespondentelor in worker; citita aici, pe main thread).
     gnm_obj = bpy.data.objects.get(GNM_MESH_NAME)
+    # V13.6: pozitiile PE OS ale landmark-urilor nazale (Gerasimov lucreaza
+    # pe craniu, nu pe tintele de piele).
+    bone = {}
+    for item in scene.gnm_markers:
+        if (item.is_placed and item.bone_empty is not None
+                and item.label in _GERASIMOV_LABELS):
+            p = item.bone_empty.matrix_world.translation
+            bone[item.label] = (p.x, p.y, p.z)
     return {
         "labels": labels,
         "verts": np.asarray(verts, dtype=np.int64),
@@ -2363,6 +2453,7 @@ def _build_snapshot(scene):
         "dense": bool(scene.gnm_live.dense_enabled),
         "m_world": (np.array(gnm_obj.matrix_world, dtype=np.float64)
                     if gnm_obj is not None else np.eye(4)),
+        "bone": bone,
     }
 
 
@@ -2431,6 +2522,36 @@ def _live_lambda(n, snap):
         return lam_formula, "formula(loo esuat)"
     floor = _adaptive_lambda(n, 0.3, 0.3, 30.0)
     return max(lam_loo, floor), "loo"
+
+
+def _gerasimov_worker(snap, scale, rot, trans, v_model):
+    """Diagnosticul Gerasimov/Ullrich-Stephan (V13.6). WORKER-safe: numpy pur.
+
+    snap["bone"] = pozitiile PE OS ale markerilor nazali (colectate pe main
+    thread); constructia Gerasimov lucreaza pe craniu, nu pe tintele de
+    piele. Nu influenteaza fitul - pur informativ. Returneaza dict pentru
+    res["gerasimov"] sau None daca niciun landmark nazal nu e plasat."""
+    bone = snap.get("bone") or {}
+    if not any(lbl in bone for lbl in _GERASIMOV_LABELS):
+        return None
+    ger_fn = _CRANIO.get("gerasimov_pronasale")
+    if ger_fn is None:
+        return {"ok": False, "reason": "cranio.geometry too old"}
+    missing = [lbl for lbl in _GERASIMOV_LABELS if lbl not in bone]
+    if missing:
+        return {"ok": False, "reason": "missing: " + ", ".join(missing)}
+    skull_pts = (_LIVE.skull or {}).get("points")
+    g = ger_fn(np.asarray(bone["Nasion"]), np.asarray(bone["Rhinion"]),
+               np.asarray(bone["Acanthion"]), np.asarray(bone["Piriform_Dr"]),
+               np.asarray(bone["Piriform_St"]), profile_pts=skull_pts)
+    if not g["ok"]:
+        return {"ok": False, "reason": g["reason"]}
+    pr_fit = scale * (v_model[_PRONASALE_VID].astype(np.float64) @ rot.T) + trans
+    return {"ok": True, "xyz": g["pronasale_xyz"],
+            "err_vs_fit": float(np.linalg.norm(g["pronasale_xyz"] - pr_fit)),
+            "dist_rhinion": float(g["dist_rhinion_mm"]),
+            "angle": float(g["angle_deg"]),
+            "fallback": bool(g["upper"]["fallback"])}
 
 
 def _compute_fit(snap):
@@ -2516,6 +2637,7 @@ def _compute_fit(snap):
         "dense_keep": dense_keep, "dense_mean": dense_mean,
         "dense_rstats": dense_rstats,
         "rms_nasal": _nasal_rms(snap["labels"], res_m) if n else None,
+        "gerasimov": _gerasimov_worker(snap, scale, rot, trans, v_model),
     }
 
 
@@ -2550,6 +2672,10 @@ def _apply_result(scene, res):
     status = res.get("status")
     if status == "error":
         st.status_text = f"Fit failed: {res.get('error', '?')[:140]}"
+        # V13.6 fix: ascundem ghost-ul/statusul Gerasimov si pe calea de
+        # eroare (altfel ramanea afisata ultima estimare valida - stale).
+        _update_gerasimov_ghost(scene, None)
+        st.gerasimov_status = ""
         return
     n = res.get("n", 0)
     st.n_fitted = n
@@ -2557,6 +2683,8 @@ def _apply_result(scene, res):
         st.status_text = (
             f"Too few usable markers ({n}) - minimum 3 for alignment "
             f"or dense constraints.")
+        _update_gerasimov_ghost(scene, None)
+        st.gerasimov_status = ""
         return
     obj = bpy.data.objects.get(GNM_MESH_NAME)
     if obj is not None:
@@ -2602,6 +2730,20 @@ def _apply_result(scene, res):
         rn = res.get("rms_nasal")
         if rn is not None:
             st.dense_status += f" | nose RMS {rn:.1f} mm"
+    # V13.6: diagnosticul Gerasimov (ghost cyan + linie de status proprie,
+    # langa diagnosticele nazale V13.3). Pur informativ - nu atinge fitul.
+    ger = res.get("gerasimov")
+    _update_gerasimov_ghost(scene, ger)
+    if ger is not None:
+        if ger.get("ok"):
+            st.gerasimov_status = (
+                f"Gerasimov: delta fit {ger['err_vs_fit']:.1f} mm | "
+                f"Rhinion {ger['dist_rhinion']:.1f} mm, "
+                f"{ger['angle']:.0f} deg"
+                + (" (no skull: N->R dir.)" if ger.get("fallback") else ""))
+        else:
+            st.gerasimov_status = (
+                f"Gerasimov: n/a - {ger.get('reason', '')[:90]}")
     screen = bpy.context.screen
     if screen is not None:
         for a in screen.areas:
@@ -3299,11 +3441,12 @@ class GNMLiveSettings(PropertyGroup):
     lambda_base: FloatProperty(
         name="Deformation (lambda base)", default=1.0,
         min=0.05, max=1000.0, soft_min=0.3, soft_max=30.0,
-        description="Ridge regularization at the full marker set (24 "
-                    "markers); effective lambda = base * 24 / n_markers. "
-                    "Calibrated on real data: 1.0 gives robust morphology "
-                    "(like offline); raise for a more 'average'/rigid head, "
-                    "lower towards 0.3 for maximum deformation")
+        description="Ridge regularization calibrated on the 24-marker "
+                    "reference set (V13.5); effective lambda = base * 24 / "
+                    "n_markers. Calibrated on real data: 1.0 gives robust "
+                    "morphology (like offline); raise for a more "
+                    "'average'/rigid head, lower towards 0.3 for maximum "
+                    "deformation")
     lambda_min: FloatProperty(
         name="Lambda Min", default=0.3, min=0.01,
         description="Lower bound of adaptive regularization (= the LOO grid "
@@ -3393,6 +3536,8 @@ class GNMLiveSettings(PropertyGroup):
                     "the status line")
     skull_status: StringProperty(default="not prepared")
     dense_status: StringProperty(default="")
+    # V13.6: linia de status a diagnosticului Gerasimov/Ullrich-Stephan
+    gerasimov_status: StringProperty(default="")
     model_status: StringProperty(default="not loaded")
     status_text: StringProperty(default="")
     rms_mm: FloatProperty(default=0.0)
@@ -3468,6 +3613,8 @@ def _draw_live_section(layout, context):
     rowd3.prop(st, "dense_nose_weight")
     if st.dense_status:
         db.label(text=st.dense_status[:170])
+    if st.gerasimov_status:
+        db.label(text=st.gerasimov_status[:170])
     db.label(text="Workflow: prepare skull -> ICP (0+ markers) -> markers")
 
     row = box.row(align=True)
@@ -3487,8 +3634,9 @@ def _draw_live_section(layout, context):
     sub.prop(st, "dense_max_rows")
     sub.prop(st, "clip_sigma")
     sub.prop(st, "prior_dir")
-    box.label(text="Ghost legend: green=V12/JSON safe, orange=JSON low,")
-    box.label(text="purple=manual picking, red=no correspondence.")
+    box.label(text="Color legend (ghosts + marker pegs): green=V12/JSON")
+    box.label(text="safe, orange=JSON low, purple=manual picking,")
+    box.label(text="red=no correspondence, cyan=Gerasimov pronasale (diag).")
 
 
 _classes = (

@@ -30,6 +30,12 @@ LANDMARK_INFO = {
     "Eurion_Dr": (5.0, -1), "Eurion_St": (5.0, 1),
     "Vertex_VarfCap": (5.5, 0),
     "Nasospinale_BazaNas": (11.0, 0), "Prosthion_BuzaSup": (12.0, 0),
+    # V13.6: pentru diagnosticul de proiectie nazala (Gerasimov/Ullrich-
+    # Stephan). Adancimi orientative (de calibrat la validarea pe cazuri):
+    # Acanthion ~ zona subnasale; Piriform ~ tesutul nazolabial de pe
+    # marginea inferioara a aperturei.
+    "Acanthion": (10.0, 0),
+    "Piriform_Dr": (6.5, -1), "Piriform_St": (6.5, 1),
 }
 
 # Ordinea canonica (cea din addonul V12) - folosita la initializarea
@@ -42,6 +48,7 @@ LANDMARK_ORDER = [
     "Zygion_Dr", "Zygion_St", "Alare_Dr", "Alare_St",
     "Eurion_Dr", "Eurion_St", "Vertex_VarfCap",
     "Nasospinale_BazaNas", "Prosthion_BuzaSup",
+    "Acanthion", "Piriform_Dr", "Piriform_St",
 ]
 
 # Ponderi de incredere per landmark (pentru alinierea/fitul ponderat).
@@ -60,6 +67,11 @@ CONFIDENCE_WEIGHTS = {
     "Eurion_Dr": 0.5, "Eurion_St": 0.5,
     "Vertex_VarfCap": 0.5, "Nasospinale_BazaNas": 1.0,
     "Prosthion_BuzaSup": 1.0,
+    # V13.6: puncte osoase bine definite pe craniu, dar cu corespondenta
+    # aproximativa pe template-ul de piele -> sub ponderea markerilor osoși
+    # precisi (1.0).
+    "Acanthion": 0.7,
+    "Piriform_Dr": 0.6, "Piriform_St": 0.6,
 }
 
 DEFAULT_CONFIDENCE = 0.7
@@ -83,23 +95,31 @@ CONSISTENCY_PAIRS = [
     ("Nasion", "Pogonion"),
     ("Orbita_Dr_Int", "Infraorbitale_Dr"),
     ("Orbita_St_Int", "Infraorbitale_St"),
+    ("Piriform_Dr", "Piriform_St"),
 ]
 
 # Indicatii de plasare corecta pentru markerii frecvent gresiti (apar in
-# avertismente, ca ajutor pentru re-plasarea in Blender).
+# avertismente, ca ajutor pentru re-plasarea in Blender). Textele sunt in
+# engleza (ajung in rapoarte).
 PLACEMENT_HINTS = {
-    "Orbita_Dr_Int": "punctul osos dacryon (marginea mediala a orbitei), "
-                     "nu centrul orbitei/globul ocular",
-    "Orbita_St_Int": "punctul osos dacryon (marginea mediala a orbitei), "
-                     "nu centrul orbitei/globul ocular",
-    "Infraorbitale_Dr": "foramenul infraorbital (sub marginea orbitei, "
-                        "pe verticala pupilei)",
-    "Infraorbitale_St": "foramenul infraorbital (sub marginea orbitei, "
-                        "pe verticala pupilei)",
-    "Rhinion": "mijlocul oaselor nazale (~25 mm sub Nasion), pe os",
-    "Pogonion": "proeminentea mentoniera anterioara (~35 mm deasupra "
-                "Gnathion), nu marginea inferioara a mandibulei",
-    "Prosthion_BuzaSup": "marginea inferioara a buzei superioare, pe median",
+    "Orbita_Dr_Int": "the dacryon bony point (medial rim of the orbit), "
+                     "not the center of the orbit/eyeball",
+    "Orbita_St_Int": "the dacryon bony point (medial rim of the orbit), "
+                     "not the center of the orbit/eyeball",
+    "Infraorbitale_Dr": "the infraorbital foramen (below the orbital rim, "
+                        "on the vertical of the pupil)",
+    "Infraorbitale_St": "the infraorbital foramen (below the orbital rim, "
+                        "on the vertical of the pupil)",
+    "Rhinion": "midpoint of the nasal bones (~25 mm below Nasion), on bone",
+    "Pogonion": "the anterior mental prominence (~35 mm above Gnathion), "
+                "not the lower border of the mandible",
+    "Prosthion_BuzaSup": "the lower border of the upper lip, on the midline",
+    "Acanthion": "tip of the anterior nasal spine (midline, at the base of "
+                 "the septum), on bone - NOT on the cartilaginous septum",
+    "Piriform_Dr": "the lower border of the piriform aperture (on bone), "
+                   "medial to the base of the nasal ala",
+    "Piriform_St": "the lower border of the piriform aperture (on bone), "
+                   "medial to the base of the nasal ala",
 }
 
 # Grupuri de vertecsi fara ancore anatomice (niciun landmark, nici os

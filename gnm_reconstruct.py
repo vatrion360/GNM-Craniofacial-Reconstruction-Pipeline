@@ -66,70 +66,70 @@ from cranio.pipeline import run_pipeline
 
 def parse_args(argv=None) -> PipelineConfig:
     parser = argparse.ArgumentParser(
-        description="Reconstructie faciala GNM din markeri craniofaciali (CSV addon Blender).")
-    parser.add_argument("--input", required=True, help="CSV exportat de addon (v11/v12/v2)")
+        description="GNM facial reconstruction from craniofacial markers (Blender addon CSV).")
+    parser.add_argument("--input", required=True, help="CSV exported by the addon (v11/v12/v2)")
     parser.add_argument("--output", default=None,
-                        help="OBJ de iesire (implicit: <input>_reconstructie.obj)")
+                        help="Output OBJ (default: <input>_reconstructie.obj)")
     parser.add_argument("--output-error-mesh", default=None,
-                        help="PLY heatmap al corectiei locale (implicit: <output>_heatmap.ply)")
+                        help="PLY heatmap of the local correction (default: <output>_heatmap.ply)")
     parser.add_argument("--output-stats", default=None,
-                        help="TXT cu statistici (implicit: <output>_statistici.txt)")
+                        help="TXT statistics report (default: <output>_statistici.txt)")
     parser.add_argument("--npz", default=default_npz_path(),
-                        help="Calea catre gnm_head.npz")
+                        help="Path to gnm_head.npz")
     parser.add_argument("--regularization", default="auto",
-                        help="'auto' (LOO-CV) sau o valoare fixa, ex. 30")
+                        help="'auto' (LOO-CV) or a fixed value, e.g. 30")
     parser.add_argument("--exclude", nargs="+", default=[], metavar="LABEL",
-                        help="Etichete de markeri exclusi manual din fit si din "
-                             "centrele TPS (ex. --exclude Pogonion Rhinion)")
+                        help="Marker labels manually excluded from the fit and "
+                             "the TPS centres (e.g. --exclude Pogonion Rhinion)")
     parser.add_argument("--exclude-outliers", action="store_true",
-                        help="Exclude automat markerii cu reziduu > max(15 mm, "
-                             "3*MAD) dupa primul fit si reface fitul o data; "
-                             "implicit sunt doar semnalati, nu exclusi")
+                        help="Automatically exclude markers with residual > "
+                             "max(15 mm, 3*MAD) after the first fit and re-fit "
+                             "once; by default they are only flagged, not excluded")
     parser.add_argument("--max-correction-mm", type=float, default=15.0,
-                        help="Limita neteda a corectiei locale per vertex pe "
-                             "SCALP (mm); pe fata se foloseste --face-cap-mm")
+                        help="Hard cap of the local correction per vertex on the "
+                             "SCALP (mm); the face uses --face-cap-mm")
     parser.add_argument("--face-cap-mm", type=float, default=8.0,
-                        help="Limita neteda a corectiei locale per vertex pe "
-                             "FATA (ochi/nas/gura), in mm")
+                        help="Hard cap of the local correction per vertex on the "
+                             "FACE (eyes/nose/mouth), in mm")
     parser.add_argument("--protect-damping", type=float, default=0.25,
-                        help="Factor de amortizare a corectiei TPS pe zonele "
-                             "fara ancore anatomice (ochi/interior gura/buze); "
-                             "1.0 = fara protectie")
+                        help="Damping factor of the TPS correction on regions "
+                             "without anatomical anchors (eyes/mouth interior/"
+                             "lips); 1.0 = no protection")
     parser.add_argument("--skip-tps", action="store_true",
-                        help="Opreste dupa fitul statistic (fara corectie locala)")
+                        help="Stop after the statistical fit (no local correction)")
     parser.add_argument("--skull", default=None,
-                        help="Craniu (STL/OBJ) din aceeasi scena Blender ca CSV-ul "
-                             "(world, mm) - activeaza constrangerile dense de scalp")
+                        help="Skull (STL/OBJ) from the same Blender scene as the "
+                             "CSV (world, mm) - enables the dense scalp constraints")
     parser.add_argument("--scalp-offset-mm", type=float, default=5.0,
-                        help="Offset tesut moale piele-os pe scalpa (mm)")
+                        help="Soft-tissue skin-bone offset on the scalp (mm)")
     parser.add_argument("--dense-weight", type=float, default=0.5,
-                        help="Ponderea totala a constrangerilor dense, relativa la "
-                             "suma ponderilor markerilor")
+                        help="Total weight of the dense constraints, relative to "
+                             "the sum of marker weights")
     parser.add_argument("--dense-samples", type=int, default=200000,
-                        help="Nr. de puncte esantionate pe suprafata craniului")
+                        help="Number of points sampled on the skull surface")
     parser.add_argument("--tps-scalp-centres", type=int, default=500,
-                        help="Nr. maxim de puncte de scalp folosite ca centre TPS")
+                        help="Maximum number of scalp points used as TPS centres")
     parser.add_argument("--tps-face-centres", type=int, default=200,
-                        help="Nr. maxim de puncte faciale folosite ca centre TPS")
+                        help="Maximum number of face points used as TPS centres")
     parser.add_argument("--no-face-dense", action="store_true",
-                        help="Constrangeri dense doar pe scalp (ca v2), nu si pe "
-                             "regiunile faciale cu tesut subtire")
+                        help="Dense constraints on the scalp only (like v2), not "
+                             "on the thin-tissue face regions")
     parser.add_argument("--no-dense-fit", action="store_true",
-                        help="Fara constrangeri dense in fitul statistic")
+                        help="No dense constraints in the statistical fit")
     parser.add_argument("--no-dense-tps", action="store_true",
-                        help="Fara centre dense in corectia TPS")
+                        help="No dense centres in the TPS correction")
     parser.add_argument("--symmetry-weight", type=float, default=0.0,
-                        help="Ponderea priorului de simetrie bilaterala in "
-                             "spatiul latent (relativa la lambda); 0 = inactiv")
+                        help="Weight of the bilateral symmetry prior in latent "
+                             "space (relative to lambda); 0 = disabled")
     parser.add_argument("--distance-weight", type=float, default=0.0,
-                        help="Ponderea totala a constrangerilor de distanta "
-                             "inter-landmark (tinta = template-ul), relativa la "
-                             "suma ponderilor markerilor; 0 = inactiv")
+                        help="Total weight of the inter-landmark distance "
+                             "constraints (target = the template), relative to "
+                             "the sum of marker weights; 0 = disabled")
     parser.add_argument("--prior-soft-sigma", type=float, default=0.0,
-                        help="Prag (sigma) peste care se activeaza priorul "
-                             "latent moale; 0 = inactiv (ramane doar clipul dur)")
+                        help="Threshold (sigma) beyond which the soft latent "
+                             "prior activates; 0 = disabled (hard clip only)")
     parser.add_argument("--prior-soft-weight", type=float, default=4.0,
-                        help="Intensitatea priorului moale (multiplu de lambda)")
+                        help="Strength of the soft prior (multiple of lambda)")
     args = parser.parse_args(argv)
 
     return PipelineConfig(

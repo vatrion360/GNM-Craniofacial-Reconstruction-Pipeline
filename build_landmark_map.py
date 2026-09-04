@@ -158,6 +158,35 @@ for name in ("zygion_right", "zygion_left"):
 landmark_map.pop("gnathion_from_chin_region", None)
 
 # ---------------------------------------------------------------------------
+# (d) Landmarkuri nazale V13.6 pentru diagnosticul de proiectie nazala
+# (Gerasimov, interpretarea Ullrich & Stephan 2011). Nu exista corespondent
+# iBUG-68; selectate geometric (tools/suggest_nasal_vertices.py) cu
+# constrangeri dure (Acanthion median exact; perechea Piriform oglinda
+# topologica exacta) si verificate vizual pe template.
+#   * acanthion (12297): punctul de piele median imediat sub subnasale
+#     (1.5 mm) -- proiectia spinei nazale anterioare;
+#   * piriform_right/left (10215/4087): +-12.4 mm de planul median, la
+#     nivelul subnasale -- proiectia marginii inferioare a aperturei
+#     piriforme (semi-latime ~12.5 mm a aperturei osoase adulte).
+# Sincronizat cu LABEL_TO_VERTEX din cranio.backend.gnm_backend (V12).
+NASAL_V13_6 = {
+    "acanthion": 12297,
+    "piriform_right": 10215,
+    "piriform_left": 4087,
+}
+for name, vid in NASAL_V13_6.items():
+    landmark_map[name] = {
+        "vertex_index": vid,
+        "position": (V[vid]).tolist(),
+        "source": "manual_anatomical_v13.6",
+        "confidence": "medium",
+        "note": "proiectie pe piele a unui punct OSOS (apertura piriforma / "
+                "spina nazala), selectata geometric + verificata vizual; "
+                "folosit la diagnosticul de proiectie nazala "
+                "(Gerasimov/Ullrich-Stephan) si la fit",
+    }
+
+# ---------------------------------------------------------------------------
 import os
 out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "landmark_vertex_map.json")

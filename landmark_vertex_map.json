@@ -11,6 +11,18 @@
     "confidence": "medium-high",
     "note": ""
   },
+  "rhinion": {
+    "vertex_index": 12310,
+    "position": [
+      6.611895514652133e-05,
+      0.2805476486682892,
+      0.1390034258365631
+    ],
+    "source": "official_gnm_68_barycentric",
+    "ibug68_index": 29,
+    "confidence": "medium-high",
+    "note": ""
+  },
   "pronasale": {
     "vertex_index": 12296,
     "position": [
@@ -21,19 +33,7 @@
     "source": "official_gnm_68_barycentric",
     "ibug68_index": 30,
     "confidence": "medium-high",
-    "note": "varful nasului (cartilaj); NU este rhinion craniometric - vezi intrarea \"rhinion\""
-  },
-  "rhinion": {
-    "vertex_index": 12310,
-    "position": [
-      6.611895887157144e-05,
-      0.2805476378756789,
-      0.13900342726034842
-    ],
-    "source": "official_gnm_68_barycentric",
-    "ibug68_index": 29,
-    "confidence": "medium-high",
-    "note": "rhinion craniometric (mijlocul oaselor nazale, 25.1 mm sub Nasion); adaugat in V13.4 - inlocuieste folosirea eronata a vertexului 12296 (pronasale) pentru Rhinion"
+    "note": ""
   },
   "subnasale": {
     "vertex_index": 12298,
@@ -164,7 +164,7 @@
     ],
     "source": "manual_verified_v12",
     "confidence": "medium",
-    "note": "V13.4: inlocuit vertexul 11165 (iBUG 0, langa ureche - NU unghiul gonial) cu 8737 (verificat anatomic V12, bigonial 129.3 mm pe template)"
+    "note": "vertex verificat anatomic (tabelul V12); inlocuieste varianta automata eronata (vezi build_landmark_map.py)"
   },
   "gonion_left_approx": {
     "vertex_index": 2609,
@@ -175,7 +175,7 @@
     ],
     "source": "manual_verified_v12",
     "confidence": "medium",
-    "note": "V13.4: inlocuit vertexul 5037 (iBUG 16, langa ureche - NU unghiul gonial) cu 2609 (verificat anatomic V12, bigonial 129.3 mm pe template)"
+    "note": "vertex verificat anatomic (tabelul V12); inlocuieste varianta automata eronata (vezi build_landmark_map.py)"
   },
   "zygion_right": {
     "vertex_index": 10002,
@@ -186,7 +186,7 @@
     ],
     "source": "geometric_extremum[right_zygomatic_region, axis=0, min]",
     "confidence": "medium-high",
-    "note": "V13.4: verificat anatomic (V12) - regiunea zigomatica, bizigomatic 135.4 mm pe template"
+    "note": "verificat anatomic (V12): bizigomatic 135.4 mm pe template"
   },
   "zygion_left": {
     "vertex_index": 3874,
@@ -197,7 +197,7 @@
     ],
     "source": "geometric_extremum[left_zygomatic_region, axis=0, max]",
     "confidence": "medium-high",
-    "note": "V13.4: verificat anatomic (V12) - regiunea zigomatica, bizigomatic 135.4 mm pe template"
+    "note": "verificat anatomic (V12): bizigomatic 135.4 mm pe template"
   },
   "glabella": {
     "vertex_index": 12337,
@@ -207,7 +207,40 @@
       0.12507393956184387
     ],
     "source": "manual_verified_v12",
-    "confidence": "medium-high",
-    "note": "V13.4: inlocuit vertexul 12333 (extremum geometric, prea sus pe frunte, 27 mm peste Nasion) cu 12337 (verificat anatomic V12, 15.8 mm peste Nasion)"
+    "confidence": "medium",
+    "note": "vertex verificat anatomic (tabelul V12); inlocuieste varianta automata eronata (vezi build_landmark_map.py)"
+  },
+  "acanthion": {
+    "vertex_index": 12297,
+    "position": [
+      3.3045140298781916e-05,
+      0.2524479031562805,
+      0.13181722164154053
+    ],
+    "source": "manual_anatomical_v13.6",
+    "confidence": "medium",
+    "note": "proiectie pe piele a unui punct OSOS (apertura piriforma / spina nazala), selectata geometric + verificata vizual; folosit la diagnosticul de proiectie nazala (Gerasimov/Ullrich-Stephan) si la fit"
+  },
+  "piriform_right": {
+    "vertex_index": 10215,
+    "position": [
+      -0.012441281229257584,
+      0.2534688711166382,
+      0.12656889855861664
+    ],
+    "source": "manual_anatomical_v13.6",
+    "confidence": "medium",
+    "note": "proiectie pe piele a unui punct OSOS (apertura piriforma / spina nazala), selectata geometric + verificata vizual; folosit la diagnosticul de proiectie nazala (Gerasimov/Ullrich-Stephan) si la fit"
+  },
+  "piriform_left": {
+    "vertex_index": 4087,
+    "position": [
+      0.012487169355154037,
+      0.25349366664886475,
+      0.12660613656044006
+    ],
+    "source": "manual_anatomical_v13.6",
+    "confidence": "medium",
+    "note": "proiectie pe piele a unui punct OSOS (apertura piriforma / spina nazala), selectata geometric + verificata vizual; folosit la diagnosticul de proiectie nazala (Gerasimov/Ullrich-Stephan) si la fit"
   }
 }

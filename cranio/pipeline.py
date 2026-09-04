@@ -19,13 +19,64 @@ from .config import PipelineConfig
 from .export import export_heatmap_ply, export_obj
 from .geometry import (build_face_dense_regions, build_protected_mask,
                        build_scalp_mask, build_vertex_region_map,
-                       dense_correspondences, load_skull_samples)
+                       dense_correspondences, gerasimov_pronasale,
+                       load_skull_samples)
 from .io_csv import read_marker_csv
 from .landmarks import (CONSISTENCY_PAIRS, PLACEMENT_HINTS,
                         REGION_OFFSETS_MM)
 from .optimize import (LossConfig, bounded_tps_correction, fit_identity,
                        robust_alignment, stability_warnings)
 from .report import write_stats
+
+# Landmark-urile necesare diagnosticului de proiectie nazala (V13.6).
+_GERASIMOV_LABELS = ("Nasion", "Rhinion", "Acanthion",
+                     "Piriform_Dr", "Piriform_St")
+_PRONASALE_VID = 12296  # iBUG 30 = varful nasului (nu e in LABEL_TO_VERTEX)
+# Interval plauzibil pentru distanta estimare->Rhinion (sanity check).
+_GERASIMOV_DIST_RANGE_MM = (10.0, 60.0)
+
+
+def _nasal_diagnostic_report(targets, skull_points, v_final):
+    """Blocul de diagnostic Gerasimov/Ullrich-Stephan (V13.6) pentru raport.
+
+    Pur informativ - calculat din POZITIILE markerilor (pe craniu), NU din
+    fit; nu influenteaza nimic in fit_identity. Returneaza (linii, rezultat):
+    linii = None daca niciunul din cele 5 landmarkuri nu e plasat; rezultat
+    = dict-ul gerasimov_pronasale (sau None daca indisponibil).
+    """
+    pos = {t[0]: np.asarray(t[2], dtype=np.float64) for t in targets}
+    if not any(lbl in pos for lbl in _GERASIMOV_LABELS):
+        return None, None
+    head = ("Gerasimov nasal projection (Ullrich-Stephan interpretation) - "
+            "informational diagnostic, does not affect the fit:")
+    missing = [lbl for lbl in _GERASIMOV_LABELS if lbl not in pos]
+    if missing:
+        return [head, f"  unavailable - missing: {', '.join(missing)}"], None
+    res = gerasimov_pronasale(pos["Nasion"], pos["Rhinion"], pos["Acanthion"],
+                              pos["Piriform_Dr"], pos["Piriform_St"],
+                              profile_pts=skull_points)
+    if not res["ok"]:
+        return [head, f"  unavailable - {res['reason']}"], None
+    up = res["upper"]
+    if not up["fallback"]:
+        src = f"{up['n_points']} profile points"
+    elif up["n_points"] > 0:
+        src = (f"isotropic profile (anisotropy {up['anisotropy']:.1f} < 2.0)"
+               f" - Nasion->Rhinion direction")
+    else:
+        src = "no skull samples - Nasion->Rhinion direction"
+    p = res["pronasale_xyz"]
+    lines = [head,
+             f"  tangent angle = {res['angle_deg']:.1f} deg, "
+             f"upper tangent: {src}",
+             f"  estimated pronasale = ({p[0]:.1f}, {p[1]:.1f}, {p[2]:.1f}) mm,"
+             f" distance to Rhinion = {res['dist_rhinion_mm']:.1f} mm"]
+    if v_final is not None:
+        d = p - v_final[_PRONASALE_VID]
+        lines.append(
+            f"  deviation vs final fitted pronasale (vertex 12296): "
+            f"{np.linalg.norm(d):.1f} mm (dy={d[1]:+.1f}, dz={d[2]:+.1f})")
+    return lines, res
 
 
 def run_pipeline(cfg: PipelineConfig) -> int:
@@ -44,30 +95,31 @@ def run_pipeline(cfg: PipelineConfig) -> int:
     )
 
     # --- Etapa 0: incarcare si verificari ---------------------------------
-    print(f"[0] Incarc CSV: {cfg.input}")
+    print(f"[0] Loading CSV: {cfg.input}")
     targets, skipped, _csv_meta = read_marker_csv(
         cfg.input, backend.index_to_label, label_to_vertex)
     if cfg.exclude:
         excl = set(cfg.exclude)
-        skipped.extend((t[0], "exclus manual (--exclude)")
+        skipped.extend((t[0], "manually excluded (--exclude)")
                        for t in targets if t[0] in excl)
         targets = [t for t in targets if t[0] not in excl]
         unknown = excl - {t[0] for t in targets} - {l for l, _ in skipped}
         if unknown:
             warnings_list.append(
-                "--exclude: etichete negasite in CSV: " + ", ".join(sorted(unknown)))
+                "--exclude: labels not found in the CSV: " + ", ".join(sorted(unknown)))
     for label, reason in skipped:
-        print(f"    - exclus {label}: {reason}")
+        print(f"    - excluded {label}: {reason}")
     if len(targets) < 4:
-        print(f"[EROARE FATALA] Prea putini markeri valizi ({len(targets)}). "
-              f"Sunt necesari minim 4 (recomandat >=10).")
+        print(f"[FATAL ERROR] Too few valid markers ({len(targets)}). "
+              f"At least 4 are required (>=10 recommended).")
         return 2
     if len(targets) < 10:
         warnings_list.append(
-            f"Doar {len(targets)} markeri valizi (<10) - reconstructia va fi "
-            f"slab constransa si dominata de media statistica.")
+            f"Only {len(targets)} valid markers (<10) - the reconstruction "
+            f"will be weakly constrained and dominated by the statistical "
+            f"mean.")
 
-    print(f"[0] Incarc modelul GNM: {cfg.npz}")
+    print(f"[0] Loading GNM model: {cfg.npz}")
     model = backend.load()
     mu, basis = model.mu, model.basis
     triangles = model.triangles
@@ -84,27 +136,28 @@ def run_pipeline(cfg: PipelineConfig) -> int:
         targets, mu, label_to_vertex)
     if cons_rows:
         n_flag = sum(1 for r in cons_rows if r[5])
-        print(f"[0] Verificare consistenta plasare: {len(cons_rows)} perechi, "
-              f"{n_flag} suspecte")
+        print(f"[0] Placement consistency check: {len(cons_rows)} pairs, "
+              f"{n_flag} suspect")
         for a, b, dc, dg, dev, flag in cons_rows:
             if flag:
                 print(f"    [!] {a} - {b}: {dc:.1f} mm vs {dg:.1f} mm "
-                      f"asteptat ({dev:+.0%})")
+                      f"expected ({dev:+.0%})")
         for label in sorted(cons_suspect):
             hint = PLACEMENT_HINTS.get(label)
-            msg = f"Marker suspect de plasare gresita: {label}"
+            msg = f"Marker suspected of misplacement: {label}"
             if hint:
-                msg += f". Pozitia corecta: {hint}"
-            msg += " (verifica in Blender; poti folosi --exclude sau --exclude-outliers)"
+                msg += f". Correct position: {hint}"
+            msg += " (check in Blender; you can use --exclude or --exclude-outliers)"
             warnings_list.append(msg)
 
     # --- Craniu (optional): constrangeri dense de suprafata ---------------
     dense = None
+    sk_points = None  # folosit si de diagnosticul nazal V13.6 (profilul oaselor)
     if cfg.skull:
         if not os.path.exists(cfg.skull):
-            print(f"[EROARE FATALA] Fisierul craniu nu exista: {cfg.skull}")
+            print(f"[FATAL ERROR] The skull file does not exist: {cfg.skull}")
             return 2
-        print(f"[0] Incarc craniul: {cfg.skull}")
+        print(f"[0] Loading skull: {cfg.skull}")
         from scipy.spatial import cKDTree
         skull_mesh, sk_points, sk_normals = load_skull_samples(
             cfg.skull, cfg.dense_samples)
@@ -129,18 +182,18 @@ def run_pipeline(cfg: PipelineConfig) -> int:
         offsets = offsets_all[first]
         region_of_vertex = region_of_all[first]
         scalp_region_id = region_names.index("scalp")
-        print(f"    {len(sk_points)} puncte pe craniu; constrangeri dense: "
+        print(f"    {len(sk_points)} skull samples; dense constraints: "
               f"{len(scalp_idx)} scalp + "
-              f"{len(dense_idx) - len(scalp_idx)} facial "
+              f"{len(dense_idx) - len(scalp_idx)} face "
               f"({', '.join(f'{r[0]}:{len(r[1])}' for r in face_regions)})")
         # Sanity: markerii (piele = os + adancime) trebuie sa fie aproape de
         # suprafata craniului; altfel probabil spatii/unitati diferite.
         d_check, _ = tree.query(targets_xyz)
         if float(np.median(d_check)) > 30.0:
             warnings_list.append(
-                f"Distanta mediana markeri->craniu este "
-                f"{np.median(d_check):.1f} mm (>30) - posibil ca craniul sa "
-                f"nu fie in acelasi spatiu/unitati ca CSV-ul!")
+                f"Median marker->skull distance is "
+                f"{np.median(d_check):.1f} mm (>30) - the skull is probably "
+                f"not in the same space/units as the CSV!")
         dense = {
             "dense_idx": dense_idx, "offsets": offsets, "tree": tree,
             "points": sk_points, "normals": sk_normals,
@@ -161,20 +214,20 @@ def run_pipeline(cfg: PipelineConfig) -> int:
         vertex_region = None
 
     # --- Etapa 1: aliniere initiala (pentru raportare) --------------------
-    print("[1] Aliniere Umeyama ponderata (robusta)...")
+    print("[1] Weighted Umeyama alignment (robust)...")
     try:
         s1, r1, t1, res_align = robust_alignment(mu[lm_idx], targets_xyz, weights)
     except ValueError as e:
-        print(f"[EROARE FATALA] {e}")
+        print(f"[FATAL ERROR] {e}")
         return 2
-    print(f"    scala = {s1:.4f}, RMS = {res_align.mean():.2f} mm "
+    print(f"    scale = {s1:.4f}, RMS = {res_align.mean():.2f} mm "
           f"(max {res_align.max():.2f} mm)")
 
     swapped = check_side_swap(targets, r1, t1, s1)
     if swapped:
         warnings_list.append(
-            "Markeri suspecti de inversare Stanga/Dreapta: "
-            + ", ".join(swapped) + ". Verifica plasarea in Blender.")
+            "Markers suspected of Left/Right swap: "
+            + ", ".join(swapped) + ". Check placement in Blender.")
 
     # --- Etapa 2: fit statistic -------------------------------------------
     lam_arg = "auto" if str(cfg.regularization).lower() == "auto" else float(cfg.regularization)
@@ -183,14 +236,14 @@ def run_pipeline(cfg: PipelineConfig) -> int:
                       if cfg.distance_weight > 0.0 else None)
     active_terms = []
     if dense and dense["in_fit"]:
-        active_terms.append("+ constrangeri dense")
+        active_terms.append("+ dense constraints")
     if loss_cfg.symmetry_weight > 0.0:
-        active_terms.append("+ simetrie")
+        active_terms.append("+ symmetry")
     if distance_pairs:
-        active_terms.append("+ distante")
+        active_terms.append("+ distances")
     if loss_cfg.prior_soft_sigma > 0.0:
-        active_terms.append("+ prior moale")
-    print(f"[2] Fit statistic (regularizare: {cfg.regularization}"
+        active_terms.append("+ soft prior")
+    print(f"[2] Statistical fit (regularization: {cfg.regularization}"
           f"{''.join(', ' + t for t in active_terms)})...")
     c, scale, rot, trans, lam_used, fit_info, res_fit = fit_identity(
         mu, basis, lm_idx, targets_xyz, weights, lam=lam_arg, dense=dense,
@@ -222,23 +275,23 @@ def run_pipeline(cfg: PipelineConfig) -> int:
             targets_xyz = targets_xyz[keep]
             weights = weights[keep]
             res_align = res_align[keep]
-            print(f"    [!] Exclusi automat {len(excluded_auto)} markeri "
-                  f"(reziduu > {thresh_ex:.1f} mm): "
+            print(f"    [!] Auto-excluded {len(excluded_auto)} markers "
+                  f"(residual > {thresh_ex:.1f} mm): "
                   + ", ".join(f"{l} ({r:.1f} mm)" for l, r in excluded_auto))
             warnings_list.append(
-                f"Markeri exclusi automat (--exclude-outliers), reziduu > "
-                f"{thresh_ex:.1f} mm: "
+                f"Automatically excluded markers (--exclude-outliers), "
+                f"residual > {thresh_ex:.1f} mm: "
                 + ", ".join(f"{l} ({r:.1f} mm)" for l, r in excluded_auto)
-                + ". Verifica plasarea lor in Blender.")
+                + ". Check their placement in Blender.")
             if len(targets) < 4:
-                print(f"[EROARE FATALA] Dupa excluderea outlierilor au ramas "
-                      f"doar {len(targets)} markeri (minim 4).")
+                print(f"[FATAL ERROR] After outlier exclusion only "
+                      f"{len(targets)} markers remain (minimum 4).")
                 return 2
             if len(targets) < 10:
                 warnings_list.append(
-                    f"Dupa excluderea outlierilor au ramas {len(targets)} "
-                    f"markeri (<10) - reconstructie slab constransa.")
-            print("    Refac fitul statistic fara outlieri...")
+                    f"After outlier exclusion {len(targets)} markers "
+                    f"remain (<10) - weakly constrained reconstruction.")
+            print("    Re-running the statistical fit without outliers...")
             c, scale, rot, trans, lam_used, fit_info, res_fit = fit_identity(
                 mu, basis, lm_idx, targets_xyz, weights, lam=lam_arg,
                 dense=dense, mirror_indices=model.mirror_indices,
@@ -255,8 +308,8 @@ def run_pipeline(cfg: PipelineConfig) -> int:
     outliers, thresh = flag_outliers(labels, res_fit)
     if outliers:
         warnings_list.append(
-            f"Markeri cu reziduu mare dupa fit (prag {thresh:.1f} mm) - "
-            "verifica plasarea si adancimea tesutului: "
+            f"Markers with large residual after the fit (threshold "
+            f"{thresh:.1f} mm) - check placement and tissue depth: "
             + ", ".join(f"{l} ({r:.1f} mm)" for l, r in outliers))
 
     # --- Mesh-ul in spatiul world (mm, Blender) ----------------------------
@@ -269,20 +322,20 @@ def run_pipeline(cfg: PipelineConfig) -> int:
     if dense is not None:
         _, _, dense_stats = fit_info
         dense_report = [
-            f"Constrangeri dense: offset scalp = {cfg.scalp_offset_mm:g} mm"
+            f"Dense constraints: scalp offset = {cfg.scalp_offset_mm:g} mm"
             + ("" if cfg.no_face_dense else
-               ", facial: " + ", ".join(
+               ", face: " + ", ".join(
                    f"{k}={v:g}" for k, v in REGION_OFFSETS_MM.items())
                + " mm"),
-            f"  pondere totala = {cfg.dense_weight:g} x markeri, "
+            f"  total weight = {cfg.dense_weight:g} x markers, "
             f"in fit = {dense['in_fit']}, in TPS = {not cfg.no_dense_tps}",
         ]
         if dense_stats:
             first, last = dense_stats[0], dense_stats[-1]
             dense_report.append(
-                f"  Corespondente pastrate: prima iter. {first[0]}"
-                f" (dist. medie {first[1]:.2f} mm) -> ultima iter. {last[0]}"
-                f" (dist. medie {last[1]:.2f} mm)")
+                f"  Kept correspondences: first iter. {first[0]}"
+                f" (mean dist {first[1]:.2f} mm) -> last iter. {last[0]}"
+                f" (mean dist {last[1]:.2f} mm)")
 
     # Cap de corectie per-vertex: scalpul (tesut subtire, forma sigura) poate
     # fi tras pana la --max-correction-mm; fata (ochi/nas/gura, geometrie
@@ -341,22 +394,22 @@ def run_pipeline(cfg: PipelineConfig) -> int:
         centers = np.vstack(centers)
         res_vecs = np.vstack(res_vecs)
 
-        print(f"[3] Corectie locala TPS (cap fata {cfg.face_cap_mm:g} mm / "
+        print(f"[3] Local TPS correction (face cap {cfg.face_cap_mm:g} mm / "
               f"scalp {cfg.max_correction_mm:g} mm, "
-              f"damping zone protejate x{cfg.protect_damping:g}, "
-              f"{len(targets)} markeri + {n_scalp_centres} scalp + "
-              f"{n_face_centres} faciale)...")
+              f"protected-zone damping x{cfg.protect_damping:g}, "
+              f"{len(targets)} markers + {n_scalp_centres} scalp + "
+              f"{n_face_centres} face)...")
         v_final, field, clamped = bounded_tps_correction(
             v_world, centers, res_vecs, cap_vertex,
             protected_idx=protected_idx,
             protect_damping=cfg.protect_damping)
         mean_corr = float(np.linalg.norm(field, axis=1).mean())
         max_corr = float(np.linalg.norm(field, axis=1).max())
-        print(f"    corectie: medie {mean_corr:.2f} mm, max {max_corr:.2f} mm")
+        print(f"    correction: mean {mean_corr:.2f} mm, max {max_corr:.2f} mm")
         if mean_corr > 5.0:
             warnings_list.append(
-                f"Corectia locala medie este mare ({mean_corr:.1f} mm) - "
-                "posibil markeri plasati inconsistent; verifica raportul.")
+                f"Mean local correction is large ({mean_corr:.1f} mm) - "
+                "possibly inconsistently placed markers; check the report.")
 
     res_final = np.linalg.norm(v_final[lm_idx] - targets_xyz, axis=1)
 
@@ -366,13 +419,13 @@ def run_pipeline(cfg: PipelineConfig) -> int:
         field_mag = np.linalg.norm(field, axis=1)
         sidx_f, _, keep_f, _ = dense_correspondences(v_final, dense)
         reg_f = dense["region_of_vertex"][keep_f]
-        dense_report.append("  Per regiune (final): pastrate, distanta "
-                            "medie la craniu [tinta], corectie medie:")
+        dense_report.append("  Per region (final): kept, mean distance to "
+                            "skull [target], mean correction:")
         off_all = dense["offsets"]
         for rid, rname in enumerate(dense["region_names"]):
             m = reg_f == rid
             if not m.any():
-                dense_report.append(f"    {rname:14s}: 0 corespondente")
+                dense_report.append(f"    {rname:14s}: 0 correspondences")
                 continue
             vids = sidx_f[m]
             d_r, _ = dense["tree"].query(v_final[vids])
@@ -381,8 +434,8 @@ def run_pipeline(cfg: PipelineConfig) -> int:
             dense_report.append(
                 f"    {rname:14s}: {m.sum():5d} | {d_r.mean():6.2f} mm "
                 f"[{target_off:4.1f}] | {field_mag[vids].mean():5.2f} mm")
-            print(f"    {rname:14s}: dist. la craniu {d_r.mean():6.2f} mm "
-                  f"(tinta {target_off:4.1f})")
+            print(f"    {rname:14s}: dist. to skull {d_r.mean():6.2f} mm "
+                  f"(target {target_off:4.1f})")
 
     # --- Etapa 4: export ---------------------------------------------------
     print(f"[4] Export OBJ: {cfg.output}")
@@ -391,22 +444,38 @@ def run_pipeline(cfg: PipelineConfig) -> int:
     export_heatmap_ply(cfg.output_error_mesh, v_final, triangles,
                        np.linalg.norm(field, axis=1))
 
+    # --- Diagnostic proiectie nazala V13.6 (informativ, post-fit) ----------
+    nasal_report, gerasimov_res = _nasal_diagnostic_report(
+        targets, sk_points, v_final)
+    if gerasimov_res is not None:
+        d_ger = gerasimov_res["dist_rhinion_mm"]
+        lo, hi = _GERASIMOV_DIST_RANGE_MM
+        if not (lo <= d_ger <= hi):
+            warnings_list.append(
+                f"The Gerasimov pronasale estimate is implausible "
+                f"(distance to Rhinion {d_ger:.1f} mm, outside "
+                f"[{lo:g}..{hi:g}]) - check the placement of the nasal "
+                f"landmarks (Acanthion/Piriform/Nasion/Rhinion).")
+        print(f"[3] Gerasimov diagnostic: estimate->Rhinion dist "
+              f"{d_ger:.1f} mm, deviation vs final fit "
+              f"{np.linalg.norm(gerasimov_res['pronasale_xyz'] - v_final[_PRONASALE_VID]):.1f} mm")
+
     extra = None
     extra_parts = []
     if cfg.skip_tps:
-        extra_parts.append("Corectia locala a fost dezactivata (--skip-tps).")
+        extra_parts.append("Local correction was disabled (--skip-tps).")
     if loss_cfg.symmetry_weight > 0.0:
         extra_parts.append(
-            f"Termen de simetrie bilaterala activ "
+            f"Bilateral symmetry term active "
             f"(symmetry_weight = {loss_cfg.symmetry_weight:g}).")
     if distance_pairs:
         extra_parts.append(
-            f"Termen de distante inter-landmark activ "
+            f"Inter-landmark distance term active "
             f"(distance_weight = {loss_cfg.distance_weight:g}, "
-            f"{len(distance_pairs)} perechi).")
+            f"{len(distance_pairs)} pairs).")
     if loss_cfg.prior_soft_sigma > 0.0:
         extra_parts.append(
-            f"Prior latent moale activ peste +/-{loss_cfg.prior_soft_sigma:g} "
+            f"Soft latent prior active beyond +/-{loss_cfg.prior_soft_sigma:g} "
             f"sigma (prior_soft_weight = {loss_cfg.prior_soft_weight:g}).")
     if extra_parts:
         extra = "\n".join(extra_parts)
@@ -418,7 +487,8 @@ def run_pipeline(cfg: PipelineConfig) -> int:
                 fit_info, res_align, res_fit, res_final,
                 clamped[:len(targets)], field, c, warnings_list, extra,
                 dense_report=dense_report, lm_regions=lm_regions,
-                consistency=cons_rows, excluded_auto=excluded_auto)
-    print(f"    Statistici: {cfg.output_stats}")
-    print("Finalizat.")
+                consistency=cons_rows, excluded_auto=excluded_auto,
+                nasal_report=nasal_report)
+    print(f"    Statistics: {cfg.output_stats}")
+    print("Done.")
     return 0

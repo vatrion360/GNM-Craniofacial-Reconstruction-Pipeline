@@ -54,6 +54,7 @@ LANDMARKS_V12 = [
     (3977, "Alare_St"), (7765, "Eurion_Dr"), (1637, "Eurion_St"),
     (12398, "Vertex_VarfCap"), (12298, "Nasospinale_BazaNas"),
     (12276, "Prosthion_BuzaSup"),
+    (12297, "Acanthion"), (10215, "Piriform_Dr"), (4087, "Piriform_St"),
 ]
 
 # Tabelul CORECTAT ANATOMIC: eticheta -> vertex GNM v3.0 (skin).
@@ -74,6 +75,14 @@ LANDMARKS_V12 = [
 #     nazala osoasa, 25.1 mm sub Nasion, median, oglinda exacta).
 #     12296 ramane disponibil ca punct anatomic "pronasale" in
 #     landmark_vertex_map.json.
+#   * V13.6: Acanthion + Piriform_Dr/St pentru diagnosticul de proiectie
+#     nazala (Gerasimov, interpretarea Ullrich & Stephan 2011). Pe
+#     template-ul de PIELE corespund: 12297 = punctul median imediat sub
+#     subnasale (1.5 mm, proiectia spinei nazale anterioare); 10215/4087 =
+#     pereche oglinda exacta la +-12.4 mm de planul median, la nivelul
+#     subnasale -- proiectia marginii inferioare a aperturei piriforme
+#     (semi-latime ~12.5 mm a aperturei osoase adulte). Selectie:
+#     tools/suggest_nasal_vertices.py + verificare vizuala.
 # Toate perechile bilaterale sunt oglinzi topologice exacte (mirror_indices);
 # pozitional, template-ul are o micro-asimetrie (< 0.05 mm).
 LABEL_TO_VERTEX = {
@@ -89,6 +98,8 @@ LABEL_TO_VERTEX = {
     "Eurion_Dr": 7765, "Eurion_St": 1637,
     "Vertex_VarfCap": 12398, "Nasospinale_BazaNas": 12298,
     "Prosthion_BuzaSup": 12276,
+    "Acanthion": 12297,
+    "Piriform_Dr": 10215, "Piriform_St": 4087,
 }
 
 

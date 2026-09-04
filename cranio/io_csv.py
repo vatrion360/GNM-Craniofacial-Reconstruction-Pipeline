@@ -50,10 +50,10 @@ def _decode_rows(rows, index_to_label, label_to_vertex):
         label = index_to_label.get(enc)
         if label is None:
             skipped.append((str(enc),
-                            "index necunoscut (versiune addon mai noua?)"))
+                            "unknown index (newer addon version?)"))
             continue
         if abs(x) < 1e-9 and abs(y) < 1e-9 and abs(z) < 1e-9:
-            skipped.append((label, "neplasat in addon (0,0,0)"))
+            skipped.append((label, "not placed in the addon (0,0,0)"))
             continue
         targets.append(MarkerTarget(
             label=label,
@@ -83,7 +83,7 @@ def read_marker_csv(csv_path, index_to_label, label_to_vertex):
             try:
                 metadata.update(json.loads(raw_lines[1].lstrip()[1:].strip()))
             except json.JSONDecodeError:
-                metadata["metadata_error"] = "linia JSON de metadate e corupta"
+                metadata["metadata_error"] = "the JSON metadata line is corrupted"
         body = [ln for ln in raw_lines if not ln.lstrip().startswith("#")]
 
     targets, skipped = _decode_rows(

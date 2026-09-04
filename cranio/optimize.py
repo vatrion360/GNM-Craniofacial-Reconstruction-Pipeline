@@ -69,8 +69,8 @@ def weighted_umeyama(src, dst, weights):
     u, d, vt = np.linalg.svd(cov)
     if np.linalg.det(u @ vt) < 0:
         raise ValueError(
-            "Alinierea cere o REFLEXIE (det=-1). Posibile cauze: markeri "
-            "inversati Stanga/Dreapta, sau erori grave de plasare."
+            "Alignment requires a REFLECTION (det=-1). Possible causes: "
+            "Left/Right swapped markers, or severe placement errors."
         )
     rot = u @ vt
     var = (w[:, None] * xc ** 2).sum()
@@ -476,20 +476,20 @@ def stability_warnings(lam_used, loo_table, c, clip_sigma=3.0):
         grid_lams = [lam for _, lam in loo_table]
         if lam_used <= min(grid_lams):
             warns.append(
-                f"LOO-CV a ales lambda={lam_used:g}, marginea INFERIOARA a "
-                f"grilei ({min(grid_lams):g}..{max(grid_lams):g}) - datele "
-                "par dominate de zgomot; considera extinderea grilei sau "
-                "activarea termenilor de loss suplimentari.")
+                f"LOO-CV chose lambda={lam_used:g}, the LOWER edge of the "
+                f"grid ({min(grid_lams):g}..{max(grid_lams):g}) - the data "
+                "seems noise-dominated; consider extending the grid or "
+                "enabling additional loss terms.")
         elif lam_used >= max(grid_lams):
             warns.append(
-                f"LOO-CV a ales lambda={lam_used:g}, marginea SUPERIOARA a "
-                f"grilei ({min(grid_lams):g}..{max(grid_lams):g}) - "
-                "regularizare maxima; verifica plasarea markerilor.")
+                f"LOO-CV chose lambda={lam_used:g}, the UPPER edge of the "
+                f"grid ({min(grid_lams):g}..{max(grid_lams):g}) - "
+                "maximum regularization; check marker placement.")
     n_clip = int((np.abs(np.asarray(c)) >= clip_sigma - 1e-9).sum())
     if n_clip:
         warns.append(
-            f"{n_clip} coeficienti de identitate au atins limita de "
-            f"+/-{clip_sigma:g} sigma (clip activ) - fitul este la marginea "
-            "modelului statistic; verifica consistenta markerilor sau "
-            "activeaza priorul moale (--prior-soft-sigma).")
+            f"{n_clip} identity coefficients hit the "
+            f"+/-{clip_sigma:g} sigma limit (clip active) - the fit is at "
+            "the edge of the statistical model; check marker consistency "
+            "or enable the soft prior (--prior-soft-sigma).")
     return warns
