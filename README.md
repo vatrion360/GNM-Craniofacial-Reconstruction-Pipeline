@@ -336,10 +336,10 @@ The harnesses measure, on the real ken-13test case: nasal bridge distance to bon
 ## License
 
 **Apache License 2.0** (inherited from the Google GNM repo). The GNM Head v3.0 model and official landmarks belong to the Google GNM project; see the terms in `LICENSE` and `CONTRIBUTING.md`.
-
+Built with ❤️ by Claude and Kimi K3
 ---
 
 _GNM Craniofacial Approximation · Blender addon V13.5 + offline pipeline (cranio v4.0) · 
 
 
-Built with ❤️ by Claude and Kimi K3
+
